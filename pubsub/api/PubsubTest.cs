@@ -23,6 +23,7 @@ using Grpc.Core;
 using System.Collections.Generic;
 using Xunit;
 using Google.Api.Gax.Grpc;
+using System.Threading;
 
 namespace GoogleCloudSamples
 {
@@ -163,6 +164,29 @@ namespace GoogleCloudSamples
             // [END pull_messages]
             return response;
         }
+
+        public async void StreamingPull(string subscriptionId)
+        {
+            SubscriptionName subscriptionName = new SubscriptionName(_projectId,
+                subscriptionId);
+            var subscriber = SubscriberClient.Create();
+            Status status;
+            do
+            {
+                var stream = subscriber.GrpcClient.StreamingPull();
+                await stream.RequestStream.WriteAsync(new StreamingPullRequest()
+                {
+                    SubscriptionAsSubscriptionName = subscriptionName
+                });
+                while (await stream.ResponseStream.MoveNext(default(CancellationToken)))
+                {
+                    StreamingPullResponse response = stream.ResponseStream.Current;
+                }
+                await stream.RequestStream.CompleteAsync();
+                status = stream.GetStatus();
+            } while (status.StatusCode == StatusCode.OK);
+        }
+
 
         public void AcknowledgeTopicMessage(
             string subscriptionId,
